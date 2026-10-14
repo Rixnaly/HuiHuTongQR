@@ -1,6 +1,5 @@
 name: Build HuiHuTong Mod APK
 
-# 手动触发：Actions 页面 → 左侧选这个 workflow → Run workflow → 选分支 → 绿色按钮
 on:
   workflow_dispatch:
 
@@ -17,13 +16,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install platform 33 + build-tools 33
+      # 不用 android-actions/setup-android：它在 2026 的 runner 上（Node 24 强制迁移）会失败。
+      # 直接用 runner 镜像里预装的 Android SDK。
+      - name: Prepare Android SDK (preinstalled)
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "platforms;android-33" "build-tools;33.0.1"
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK"
+          ls "$SDK" || true
+          SDKMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
+          echo "using: $SDKMGR"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" --install "platforms;android-33" "build-tools;33.0.1"
+          echo "sdk.dir=$SDK" > local.properties
 
       - name: Build release APK (unsigned)
         run: |
